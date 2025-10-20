@@ -132,10 +132,40 @@ class TreeGenotype():
     def initialization(cls, mu, depth_limit, **kwargs):
         population = [cls() for _ in range(mu)]
 
-        # 2a TODO: Initialize genes member variables of individuals
-        #          in population using ramped half-and-half.
-        #          Pass **kwargs to your functions to give them
-        #          the sets of terminal and nonterminal primitives.
+        # Pull out primitive sets and RNG so the helper builders can use them.
+        terminals = kwargs.get("terminals")
+        nonterminals = kwargs.get("nonterminals")
+        rng = kwargs.get("rng", random)
+
+        if not terminals:
+            raise ValueError("terminals must contain at least one primitive")
+        if depth_limit < 1:
+            raise ValueError("depth_limit must be a positive integer")
+
+        # Determine how many individuals should come from each strategy.
+        num_full = mu // 2
+
+        for index, individual in enumerate(population):
+            max_depth = rng.randint(1, depth_limit)
+            use_full = index < num_full
+
+            if use_full:
+                tree = cls.generate_full_tree(
+                    max_depth,
+                    terminals=terminals,
+                    nonterminals=nonterminals,
+                    rng=rng,
+                )
+            else:
+                tree = cls.generate_grow_tree(
+                    max_depth,
+                    terminals=terminals,
+                    nonterminals=nonterminals,
+                    rng=rng,
+                )
+
+            # Store the freshly constructed parse tree on the genotype.
+            individual.genes = tree
 
         return population
 
