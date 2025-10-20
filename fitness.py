@@ -7,6 +7,26 @@ from functools import cache
 from math import inf
 
 
+def _score_with_controller(controller, state, player, rng):
+    """Evaluate ``state`` using the supplied controller helper."""
+
+    if controller is None:
+        raise ValueError("controller must not be None when scoring states")
+
+    if hasattr(controller, "evaluate"):
+        return controller.evaluate(state, player=player, rng=rng)
+
+    genes = getattr(controller, "genes", None)
+    if genes is not None and hasattr(genes, "evaluate"):
+        return genes.evaluate(state, player=player, rng=rng)
+
+    if callable(controller):
+        # Allow simple function-based controllers used during experimentation.
+        return controller(state, player=player)
+
+    raise TypeError("controller must expose an 'evaluate' method or be callable")
+
+
 def manhattan(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -17,6 +37,7 @@ def manhattan(a, b):
 def play_GPac(pac_controller, ghost_controller=None, game_map=None, score_vector=False, **kwargs):
     game_map = parse_map(game_map)
     game = gpac.GPacGame(game_map, **kwargs)
+    controller_rng = kwargs.get('rng', random)
 
     # Game loop, representing one turn.
     while not game.gameover:
@@ -38,10 +59,14 @@ def play_GPac(pac_controller, ghost_controller=None, game_map=None, score_vector
                     ###   YOUR 2a CODE STARTS HERE   ###
                     ####################################
                     '''
-                    # 2a TODO: Score all of the states stored in s_primes by evaluating your tree.
+                    best_score = -inf
+                    selected_action_idx = 0
 
-                    # 2a TODO: Assign index of state with the best score to selected_action_idx.
-                    selected_action_idx = None
+                    for idx, observation in enumerate(s_primes):
+                        score = _score_with_controller(pac_controller, observation, player, controller_rng)
+                        if score > best_score:
+                            best_score = score
+                            selected_action_idx = idx
 
                     # You may want to uncomment these print statements for debugging.
                     # print(selected_action_idx)
