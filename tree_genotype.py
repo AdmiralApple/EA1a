@@ -137,43 +137,6 @@ class TreeGenotype():
         #          Pass **kwargs to your functions to give them
         #          the sets of terminal and nonterminal primitives.
 
-        if depth_limit < 1:
-            raise ValueError("depth_limit must be at least 1 for initialization")
-
-        terminals = kwargs.get("terminals", ())
-        nonterminals = kwargs.get("nonterminals", ())
-        rng = kwargs.get("rng", random)
-
-        if not terminals:
-            raise ValueError("terminals must contain at least one primitive")
-
-        # Split the population into full and grow groups. When mu is odd we favor
-        # grow initialization for the extra individual, matching the half-and-half
-        # description while keeping the code straightforward.
-        full_count = mu // 2
-
-        depth_choices = tuple(range(1, depth_limit + 1))
-
-        for index, individual in enumerate(population):
-            # Sample a target depth uniformly from the allowed range for each tree
-            # to distribute structural complexity across the population.
-            target_depth = rng.choice(depth_choices)
-
-            if index < full_count:
-                individual.genes = cls.generate_full_tree(
-                    target_depth,
-                    terminals=terminals,
-                    nonterminals=nonterminals,
-                    rng=rng,
-                )
-            else:
-                individual.genes = cls.generate_grow_tree(
-                    target_depth,
-                    terminals=terminals,
-                    nonterminals=nonterminals,
-                    rng=rng,
-                )
-
         return population
 
 
