@@ -1,9 +1,29 @@
 
 # tree_genotype.py
 
+import math
 import random
+import sys
 from copy import deepcopy
 from fitness import manhattan
+
+
+FLOAT_MAX = sys.float_info.max
+DIVISION_EPSILON = 1e-9
+
+
+def _clamp_float(value):
+    """Ensure math operations remain in a safe floating-point range."""
+
+    if math.isnan(value):
+        return 0.0
+    if math.isinf(value):
+        return math.copysign(FLOAT_MAX, value)
+    if value > FLOAT_MAX:
+        return FLOAT_MAX
+    if value < -FLOAT_MAX:
+        return -FLOAT_MAX
+    return value
 
 
 class TreeNode:
@@ -58,6 +78,126 @@ class ParseTree:
             return 1 + max(_depth(child) for child in node.children)
 
         return _depth(self.root)
+
+    def evaluate(self, state, *, active_player=None, rng=random):
+        """Evaluate the parse tree against a GPac state."""
+
+        if self.root is None:
+            raise ValueError("parse tree must define a root node")
+
+        if active_player is None:
+            active_player = self._infer_active_player(state)
+
+        terminal_cache = {}
+
+        def visit(node):
+            if node.is_terminal:
+                return self._evaluate_terminal(node, state, active_player, terminal_cache)
+
+            if len(node.children) != 2:
+                raise ValueError("nonterminal primitives must be binary")
+
+            left = visit(node.children[0])
+            right = visit(node.children[1])
+            return self._evaluate_nonterminal(node.primitive, left, right, rng)
+
+        return visit(self.root)
+
+    @staticmethod
+    def _infer_active_player(state):
+        """Best-effort guess for the player whose action produced the state."""
+
+        players = state.get("players", {}) if isinstance(state, dict) else {}
+        if not players:
+            raise ValueError("state must include a players dictionary")
+
+        pac_players = [name for name in players if "m" in name]
+        if len(pac_players) == 1:
+            return pac_players[0]
+        if pac_players:
+            return pac_players[0]
+        return next(iter(players))
+
+    def _evaluate_terminal(self, node, state, active_player, terminal_cache):
+        """Compute terminal node values with light caching."""
+
+        primitive = node.primitive
+
+        if primitive == "C":
+            if node.value is None:
+                raise ValueError("constant primitives must define a value")
+            return float(node.value)
+
+        if primitive in terminal_cache:
+            return terminal_cache[primitive]
+
+        players = state.get("players", {})
+        if active_player not in players:
+            raise ValueError("state is missing the active player's position")
+        location = players[active_player]
+
+        walls = state.get("walls")
+        if walls is None:
+            raise ValueError("state is missing wall information")
+        width = len(walls)
+        height = len(walls[0]) if width else 0
+
+        result = 0.0
+
+        if primitive == "G":
+            ghosts = [pos for name, pos in players.items() if "m" not in name]
+            if ghosts:
+                result = min(manhattan(location, ghost) for ghost in ghosts)
+            else:
+                result = float(width + height)
+        elif primitive == "P":
+            pills = state.get("pills", ())
+            result = min((manhattan(location, pill) for pill in pills), default=0.0)
+        elif primitive == "F":
+            fruit = state.get("fruit")
+            if fruit is None:
+                result = float(width + height)
+            else:
+                result = manhattan(location, fruit)
+        elif primitive == "W":
+            x, y = location
+            adjacent_walls = 0
+            for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):
+                nx, ny = x + dx, y + dy
+                if not (0 <= nx < width and 0 <= ny < height):
+                    adjacent_walls += 1
+                elif walls[nx][ny]:
+                    adjacent_walls += 1
+            result = float(adjacent_walls)
+        else:
+            raise ValueError(f"unknown terminal primitive '{primitive}'")
+
+        terminal_cache[primitive] = float(result)
+        return terminal_cache[primitive]
+
+    def _evaluate_nonterminal(self, primitive, left, right, rng):
+        """Execute the operator represented by a nonterminal primitive."""
+
+        if primitive == "+":
+            return _clamp_float(left + right)
+        if primitive == "-":
+            return _clamp_float(left - right)
+        if primitive == "*":
+            return _clamp_float(left * right)
+        if primitive == "/":
+            denominator = right
+            if abs(denominator) < DIVISION_EPSILON:
+                return _clamp_float(left)
+            return _clamp_float(left / denominator)
+        if primitive == "RAND":
+            lower, upper = sorted((left, right))
+            if not math.isfinite(lower) or not math.isfinite(upper):
+                return _clamp_float(left)
+            if lower == upper:
+                return _clamp_float(lower)
+            return _clamp_float(rng.uniform(lower, upper))
+
+        raise ValueError(f"unknown nonterminal primitive '{primitive}'")
 
 class TreeGenotype():
     def __init__(self):
@@ -271,4 +411,11 @@ class TreeGenotype():
         # 2b TODO: Mutate mutant.genes to produce a modified tree.
 
         return mutant
+
+    def evaluate(self, state, *, active_player=None, rng=random):
+        """Delegate evaluation to the contained parse tree."""
+
+        if self.genes is None:
+            raise ValueError("genes must contain a parse tree before evaluation")
+        return self.genes.evaluate(state, active_player=active_player, rng=rng)
 
