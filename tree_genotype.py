@@ -5,10 +5,89 @@ import random
 from copy import deepcopy
 from fitness import manhattan
 
+
+class TreeNode:
+    """Simple node representation for parse trees used by the GP genotype."""
+
+    CONSTANT_RANGE = (-5.0, 5.0)
+
+    def __init__(self, primitive, children=None, value=None):
+        # Store the primitive's identifying string so it can be serialized later.
+        self.primitive = primitive
+        # Children default to an empty list to keep the API convenient.
+        self.children = list(children) if children else []
+        # Constants (`C`) maintain a sampled value so the node is deterministic.
+        self.value = value
+
+    @property
+    def is_terminal(self):
+        """Return True when the node has no children."""
+
+        return len(self.children) == 0
+
+    @classmethod
+    def make_terminal(cls, primitive, *, rng=random):
+        """Factory helper that builds terminal nodes, sampling constants as needed."""
+
+        if primitive == "C":
+            # Use a modest range around zero to mirror other sensor magnitudes.
+            value = rng.uniform(*cls.CONSTANT_RANGE)
+            return cls(primitive, value=value)
+        return cls(primitive)
+
+    def __repr__(self):
+        details = f" value={self.value}" if self.value is not None else ""
+        return f"TreeNode({self.primitive}{details}, children={len(self.children)})"
+
+
+class ParseTree:
+    """Container for the root node of a parse tree."""
+
+    def __init__(self, root):
+        self.root = root
+
+    def max_depth(self):
+        """Compute the maximum depth to assist with debugging and validation."""
+
+        def _depth(node):
+            if not node.children:
+                return 0
+            return 1 + max(_depth(child) for child in node.children)
+
+        return _depth(self.root)
+
 class TreeGenotype():
     def __init__(self):
         self.fitness = None
         self.genes = None
+
+    @staticmethod
+    def generate_full_tree(depth_limit, *, terminals, nonterminals, rng=random):
+        """Build a full tree where every branch reaches ``depth_limit``."""
+
+        if depth_limit < 0:
+            raise ValueError("depth_limit must be non-negative")
+
+        term_choices = tuple(terminals)
+        nonterm_choices = tuple(nonterminals)
+
+        if not term_choices:
+            raise ValueError("At least one terminal primitive is required")
+        if depth_limit > 0 and not nonterm_choices:
+            raise ValueError("Nonterminal primitives are required for depth > 0")
+
+        def build(depth):
+            if depth == depth_limit:
+                primitive = rng.choice(term_choices)
+                return TreeNode.make_terminal(primitive, rng=rng)
+
+            primitive = rng.choice(nonterm_choices)
+            # GPac primitives are all binary, so construct two children.
+            left_child = build(depth + 1)
+            right_child = build(depth + 1)
+            return TreeNode(primitive, children=[left_child, right_child])
+
+        return ParseTree(build(0))
 
 
     @classmethod
