@@ -171,8 +171,34 @@ class TreeGenotype():
 
 
     def serialize(self):
-        # 2a TODO: Return a string representing self.genes in the required format.
-        return 'Unimplemented'
+        """
+        Return a depth first serialization of the active tree """
+
+        if self.genes is None or self.genes.root is None:
+            raise ValueError("genes must not be none")
+
+        lines = []
+
+        def visit(node, depth):
+            """
+            append the formatted for node and visit children """
+
+            if node is None:
+                return
+
+            if node.primitive == "C" and node.value is not None:
+                primitive_repr = str(float(node.value))
+            else:
+                primitive_repr = str(node.primitive)
+
+            lines.append(f"{'|' * depth}{primitive_repr}")
+
+            for child in node.children:
+                visit(child, depth + 1)
+
+        visit(self.genes.root, 0)
+
+        return "\n".join(lines)
 
 
     def deserialize(self, serialization):
