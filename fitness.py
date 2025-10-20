@@ -4,7 +4,20 @@
 import gpac
 import random
 from functools import cache
-from math import inf
+
+
+def _resolve_parse_tree(controller):
+    """Return the parse tree object backing ``controller``."""
+
+    if controller is None:
+        return None
+
+    tree = getattr(controller, "genes", controller)
+    if tree is None:
+        raise ValueError("controller does not reference a parse tree")
+    if not hasattr(tree, "evaluate"):
+        raise TypeError("controller must expose an evaluate method")
+    return tree
 
 
 def manhattan(a, b):
@@ -38,10 +51,16 @@ def play_GPac(pac_controller, ghost_controller=None, game_map=None, score_vector
                     ###   YOUR 2a CODE STARTS HERE   ###
                     ####################################
                     '''
-                    # 2a TODO: Score all of the states stored in s_primes by evaluating your tree.
+                    tree = _resolve_parse_tree(pac_controller)
+                    scores = []
+                    for observation in s_primes:
+                        state = dict(observation)
+                        state['active_player'] = player
+                        scores.append(tree.evaluate(state, actor=player, rng=random))
 
-                    # 2a TODO: Assign index of state with the best score to selected_action_idx.
-                    selected_action_idx = None
+                    selected_action_idx = max(
+                        range(len(scores)), key=lambda idx: scores[idx]
+                    )
 
                     # You may want to uncomment these print statements for debugging.
                     # print(selected_action_idx)

@@ -1,9 +1,26 @@
 
 # tree_genotype.py
 
+import math
 import random
+import sys
 from copy import deepcopy
+
 from fitness import manhattan
+
+
+_MAX_FLOAT = sys.float_info.max
+_EPSILON = 1e-9
+
+
+def _clamp(value):
+    """Clamp floating point ``value`` to the representable range."""
+
+    if value > _MAX_FLOAT:
+        return _MAX_FLOAT
+    if value < -_MAX_FLOAT:
+        return -_MAX_FLOAT
+    return value
 
 
 class TreeNode:
@@ -58,6 +75,135 @@ class ParseTree:
             return 1 + max(_depth(child) for child in node.children)
 
         return _depth(self.root)
+
+    def evaluate(self, state, *, actor=None, rng=random):
+        """Evaluate the parse tree for the provided game state.
+
+        The evaluation performs a depth-first traversal, caching terminal
+        primitive values so repeated sensors are only computed once per
+        state.  The ``actor`` parameter allows the caller to specify which
+        Pac-Man entity should be treated as the focal player when multiple
+        Pacs are present in the observation.
+        """
+
+        if self.root is None:
+            raise ValueError("parse tree has no root node")
+
+        players = state.get("players")
+        if not isinstance(players, dict) or not players:
+            raise ValueError("state must include player locations")
+
+        if actor is None:
+            actor = state.get("active_player")
+        if actor is None or actor not in players:
+            # default to the first Pac-Man entry if the caller did not
+            # explicitly specify which Pac should be evaluated.
+            pac_candidates = [name for name in players if "m" in name]
+            if not pac_candidates:
+                raise ValueError("state does not contain a Pac-Man player")
+            actor = pac_candidates[0]
+
+        terminal_cache = {}
+        return self._evaluate_node(self.root, state, actor, terminal_cache, rng)
+
+    def _evaluate_node(self, node, state, actor, terminal_cache, rng):
+        """Recursively evaluate ``node`` within ``state``."""
+
+        if node.is_terminal:
+            return self._evaluate_terminal(node, state, actor, terminal_cache)
+
+        if len(node.children) != 2:
+            raise ValueError(
+                f"nonterminal '{node.primitive}' must have exactly two children"
+            )
+
+        left = self._evaluate_node(node.children[0], state, actor, terminal_cache, rng)
+        right = self._evaluate_node(node.children[1], state, actor, terminal_cache, rng)
+        return self._apply_operator(node.primitive, left, right, rng)
+
+    def _evaluate_terminal(self, node, state, actor, terminal_cache):
+        """Resolve the value for a terminal primitive."""
+
+        primitive = node.primitive
+        if primitive == "C":
+            if node.value is None:
+                raise ValueError("constant node is missing a sampled value")
+            return float(node.value)
+
+        if primitive in terminal_cache:
+            return terminal_cache[primitive]
+
+        players = state["players"]
+        pac_position = players[actor]
+
+        if primitive == "G":
+            ghosts = [pos for name, pos in players.items() if "m" not in name]
+            if ghosts:
+                value = min(manhattan(pac_position, ghost) for ghost in ghosts)
+            else:
+                value = _MAX_FLOAT
+        elif primitive == "P":
+            pills = state.get("pills", frozenset())
+            if pills:
+                value = min(manhattan(pac_position, pill) for pill in pills)
+            else:
+                value = _MAX_FLOAT
+        elif primitive == "F":
+            fruit = state.get("fruit")
+            if fruit is None:
+                value = _MAX_FLOAT
+            else:
+                value = manhattan(pac_position, fruit)
+        elif primitive == "W":
+            walls = state.get("walls")
+            if walls is None:
+                raise ValueError("state is missing wall information for 'W' primitive")
+            width = len(walls)
+            height = len(walls[0]) if width else 0
+            x, y = pac_position
+            adjacent_walls = 0
+            for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):
+                nx = x + dx
+                ny = y + dy
+                if not (0 <= nx < width and 0 <= ny < height):
+                    adjacent_walls += 1
+                elif walls[nx][ny]:
+                    adjacent_walls += 1
+            value = float(adjacent_walls)
+        else:
+            raise ValueError(f"unknown terminal primitive '{primitive}'")
+
+        terminal_cache[primitive] = float(value)
+        return terminal_cache[primitive]
+
+    def _apply_operator(self, primitive, left, right, rng):
+        """Apply a nonterminal primitive to its evaluated child values."""
+
+        if primitive == "+":
+            return _clamp(left + right)
+        if primitive == "-":
+            return _clamp(left - right)
+        if primitive == "*":
+            return _clamp(left * right)
+        if primitive == "/":
+            if math.isclose(right, 0.0, abs_tol=_EPSILON):
+                if left > 0:
+                    return _MAX_FLOAT
+                if left < 0:
+                    return -_MAX_FLOAT
+                return 0.0
+            return _clamp(left / right)
+        if primitive == "RAND":
+            if math.isfinite(left) and math.isfinite(right):
+                low, high = sorted((left, right))
+                return rng.uniform(low, high)
+            if math.isfinite(left):
+                return left
+            if math.isfinite(right):
+                return right
+            return _MAX_FLOAT
+
+        raise ValueError(f"unknown nonterminal primitive '{primitive}'")
 
 class TreeGenotype():
     def __init__(self):
