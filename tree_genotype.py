@@ -3,6 +3,7 @@
 
 import random
 from copy import deepcopy
+from math import isfinite
 from fitness import manhattan
 
 
@@ -59,10 +60,167 @@ class ParseTree:
 
         return _depth(self.root)
 
+    def evaluate(self, state, *, player=None, rng=random, cache=None):
+        """
+        Evaluate the parse tree against the provided game state.
+
+        Parameters
+        ----------
+        state: dict
+            Observation dictionary returned by ``GPacGame.get_observations``.
+        player: str | None
+            Identifier for the agent whose action produced ``state``.
+            When ``None`` the function attempts to infer the lone Pac-Man.
+        rng: random.Random | module
+            Random number generator used by the RAND primitive.
+        cache: dict | None
+            Optional cache allowing terminal primitive values to be reused
+            during a single evaluation.
+        """
+
+        if self.root is None:
+            raise ValueError("parse tree must have a root node before evaluation")
+
+        if state is None:
+            raise ValueError("state must be a mapping produced by GPac")
+
+        players = state.get("players")
+        if not players:
+            raise ValueError("state does not contain player locations")
+
+        if player is None:
+            # Fall back to the first Pac-Man identifier if the caller did not
+            # explicitly provide the acting agent.
+            pac_players = [name for name in players if "m" in name]
+            if len(pac_players) != 1:
+                raise ValueError("unable to infer acting player from state")
+            player = pac_players[0]
+
+        terminal_cache = cache if cache is not None else {}
+
+        return self._evaluate_node(self.root, state, player, terminal_cache, rng)
+
+    # ------------------------------------------------------------------
+    # Internal helpers for tree execution.
+    # ------------------------------------------------------------------
+    def _evaluate_node(self, node, state, player, cache, rng):
+        if node.is_terminal:
+            return self._evaluate_terminal(node, state, player, cache)
+
+        if len(node.children) != 2:
+            raise ValueError(
+                f"nonterminal primitive '{node.primitive}' expected 2 children"
+            )
+
+        left_value = self._evaluate_node(node.children[0], state, player, cache, rng)
+        right_value = self._evaluate_node(node.children[1], state, player, cache, rng)
+
+        return self._apply_operator(node.primitive, left_value, right_value, rng)
+
+    def _evaluate_terminal(self, node, state, player, cache):
+        primitive = node.primitive
+        if primitive == "C":
+            # Constant nodes embed their sampled value directly in the node.
+            if node.value is None:
+                raise ValueError("constant node is missing an assigned value")
+            return float(node.value)
+
+        key = (primitive, player)
+        if key in cache:
+            return cache[key]
+
+        walls = state.get("walls")
+        pills = state.get("pills", frozenset())
+        fruit = state.get("fruit")
+        players = state["players"]
+        location = players.get(player)
+        if location is None:
+            raise KeyError(f"player '{player}' not present in state")
+
+        width = len(walls)
+        height = len(walls[0]) if width else 0
+
+        if primitive == "G":
+            if "m" in player:
+                targets = [pos for name, pos in players.items() if "m" not in name]
+            else:
+                targets = [pos for name, pos in players.items() if "m" in name]
+            cache[key] = self._nearest_distance(location, targets, width + height)
+        elif primitive == "P":
+            cache[key] = self._nearest_distance(location, pills, 0.0)
+        elif primitive == "F":
+            if fruit is None:
+                cache[key] = float(width + height)
+            else:
+                cache[key] = float(manhattan(location, fruit))
+        elif primitive == "W":
+            cache[key] = float(
+                self._adjacent_wall_count(location, walls, width, height)
+            )
+        else:
+            raise ValueError(f"unsupported terminal primitive '{primitive}'")
+
+        return cache[key]
+
+    def _apply_operator(self, primitive, left_value, right_value, rng):
+        if primitive == "+":
+            return left_value + right_value
+        if primitive == "-":
+            return left_value - right_value
+        if primitive == "*":
+            return left_value * right_value
+        if primitive == "/":
+            if right_value == 0:
+                # Gracefully degrade division by returning the numerator.
+                return left_value
+            return left_value / right_value
+        if primitive == "RAND":
+            low = min(left_value, right_value)
+            high = max(left_value, right_value)
+            if not isfinite(low) or not isfinite(high):
+                # Degenerate ranges should not cause the generator to fail.
+                return low if low == high else 0.0
+            return rng.uniform(low, high)
+        raise ValueError(f"unsupported nonterminal primitive '{primitive}'")
+
+    @staticmethod
+    def _nearest_distance(origin, targets, default_value):
+        # Compute the distance to the closest element in ``targets``.
+        if not targets:
+            return float(default_value)
+        return float(min(manhattan(origin, target) for target in targets))
+
+    @staticmethod
+    def _adjacent_wall_count(location, walls, width, height):
+        # Count walls in the four cardinal directions, treating borders as walls.
+        x, y = location
+        deltas = ((1, 0), (-1, 0), (0, 1), (0, -1))
+        count = 0
+        for dx, dy in deltas:
+            nx, ny = x + dx, y + dy
+            if not (0 <= nx < width and 0 <= ny < height):
+                count += 1
+                continue
+            if walls[nx][ny]:
+                count += 1
+        return count
+
 class TreeGenotype():
     def __init__(self):
         self.fitness = None
         self.genes = None
+
+    def evaluate(self, state, *, player=None, rng=random, cache=None):
+        """
+        Delegate evaluation to the underlying parse tree.
+
+        This thin wrapper keeps the genotype interface convenient when the
+        notebook or fitness function stores the parse tree in ``genes``.
+        """
+
+        if self.genes is None:
+            raise ValueError("genes must be initialized before evaluation")
+        return self.genes.evaluate(state, player=player, rng=rng, cache=cache)
 
     @staticmethod
     def generate_full_tree(depth_limit, *, terminals, nonterminals, rng=random):

@@ -4,7 +4,7 @@
 import gpac
 import random
 from functools import cache
-from math import inf
+from math import inf, isfinite
 
 
 def manhattan(a, b):
@@ -33,25 +33,29 @@ def play_GPac(pac_controller, ghost_controller=None, game_map=None, score_vector
                     selected_action_idx = random.randrange(len(actions))
 
                 else:
-                    '''
-                    ####################################
-                    ###   YOUR 2a CODE STARTS HERE   ###
-                    ####################################
-                    '''
-                    # 2a TODO: Score all of the states stored in s_primes by evaluating your tree.
+                    # Extract the parse tree regardless of whether the caller
+                    # passed a TreeGenotype instance or the genes directly.
+                    controller = getattr(pac_controller, "genes", pac_controller)
+                    if controller is None or not hasattr(controller, "evaluate"):
+                        raise TypeError(
+                            "pac_controller must expose an evaluate(state, ...) method"
+                        )
 
-                    # 2a TODO: Assign index of state with the best score to selected_action_idx.
-                    selected_action_idx = None
+                    best_score = -inf
+                    selected_action_idx = 0
+
+                    for idx, candidate_state in enumerate(s_primes):
+                        score = controller.evaluate(candidate_state, player=player)
+                        # Guard against NaNs propagating silently through comparisons.
+                        if not isfinite(score):
+                            score = -inf
+                        if score > best_score:
+                            best_score = score
+                            selected_action_idx = idx
 
                     # You may want to uncomment these print statements for debugging.
                     # print(selected_action_idx)
                     # print(actions)
-
-                    '''
-                    ####################################
-                    ###    YOUR 2a CODE ENDS HERE    ###
-                    ####################################
-                    '''
 
             # Select Ghost action(s) using provided strategy.
             else:
