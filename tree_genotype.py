@@ -94,6 +94,40 @@ class TreeGenotype():
         return ParseTree(build(0))
 
 
+    @staticmethod
+    def generate_grow_tree(depth_limit, *, terminals, nonterminals, rng=random):
+        """
+        Build a tree using the grow method described in the notebook."""
+
+        if depth_limit < 0:
+            raise ValueError("depth_limit is negative")
+
+        term_choices = tuple(terminals)
+        nonterm_choices = tuple(nonterminals)
+
+        if not term_choices:
+            raise ValueError("need at least one terminal primitive")
+
+        def build(depth):
+            # Choose from both primitive sets until the depth limit is hit.
+            at_limit = depth == depth_limit
+            choices = term_choices if at_limit else term_choices + nonterm_choices
+            if not choices:
+                raise ValueError("no primitives available to build the tree")
+
+            primitive = rng.choice(choices)
+
+            # Only expand children when a nonterminal was picked before the limit.
+            if primitive in nonterm_choices and not at_limit:
+                left_child = build(depth + 1)
+                right_child = build(depth + 1)
+                return TreeNode(primitive, children=[left_child, right_child])
+
+            return TreeNode.make_terminal(primitive, rng=rng)
+
+        return ParseTree(build(0))
+
+
     @classmethod
     def initialization(cls, mu, depth_limit, **kwargs):
         population = [cls() for _ in range(mu)]
