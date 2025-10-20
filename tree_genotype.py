@@ -97,7 +97,7 @@ class TreeGenotype():
     @staticmethod
     def generate_grow_tree(depth_limit, *, terminals, nonterminals, rng=random):
         """
-        Build a tree using the grow method described in the notebook."""
+        Build a tree using the grow method"""
 
         if depth_limit < 0:
             raise ValueError("depth_limit is negative")
@@ -109,7 +109,7 @@ class TreeGenotype():
             raise ValueError("need at least one terminal primitive")
 
         def build(depth):
-            # Choose from both primitive sets until the depth limit is hit.
+            #choose from both primitive sets until the depth limit is hit
             at_limit = depth == depth_limit
             choices = term_choices if at_limit else term_choices + nonterm_choices
             if not choices:
@@ -117,7 +117,7 @@ class TreeGenotype():
 
             primitive = rng.choice(choices)
 
-            # Only expand children when a nonterminal was picked before the limit.
+            #only expand children when a nonterminal was picked before the limit
             if primitive in nonterm_choices and not at_limit:
                 left_child = build(depth + 1)
                 right_child = build(depth + 1)
