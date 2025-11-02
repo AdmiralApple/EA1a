@@ -151,36 +151,3 @@ def ghost_random_search_experiment(
     return best_per_run, best_solution, best_log, stairstep_data, merged_hist
 
 
-def save_ghost_data(
-    best_per_run: Sequence[float],
-    best_solution: TreeGenotype,
-    best_log: Sequence[str],
-    stairstep_data: Sequence[float],
-    histogram: RoundedFitnessHistogramMaker,
-    output_dir: Path,
-) -> None:
-    """
-    Persist experiment artifacts to disk for later analysis"""
-
-    # Ensure the target directory exists so subsequent writes succeed.
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    with (output_dir / "best_per_run.txt").open("w", encoding="utf-8") as handle:
-        for score in best_per_run:
-            handle.write(f"{score}\n")
-
-    # Serialise the tree genotype
-    with (output_dir / "best_solution.txt").open("w", encoding="utf-8") as handle:
-        handle.write(best_solution.serialize())
-
-    # Persist the game log for the best run
-    with (output_dir / "best_log.txt").open("w", encoding="utf-8") as handle:
-        for line in best_log:
-            handle.write(f"{line}\n")
-
-    # Save the running best scores
-    with (output_dir / "stairstep.txt").open("w", encoding="utf-8") as handle:
-        handle.write(str(list(stairstep_data)))
-
-    histogram.save_to_file(output_dir / "histogram.txt")
-
