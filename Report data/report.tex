@@ -1,0 +1,117 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\sisetup{round-mode=places,round-precision=3}
+
+\title{COMP 6660 Fall 2025 Assignment 2a}
+\author{Elwood Hogan elh0061@auburn.edu}
+\date{\today}
+
+\begin{document}
+	\maketitle
+	
+	\section{Results}
+	\subsection{Random Search (Green Requirement)}
+	Table~\ref{tab:green-scores} summarizes the best score observed in each of the ten random-search runs. The experiment achieved a mean best score of \num{112.721} with a sample standard deviation of \num{11.655}. Run~6 found the strongest controller with a score of \num{127.674}.
+	
+	\begin{table}[ht]
+		\centering
+		\begin{tabular}{cc}
+			\toprule
+			Run & Best Score \\
+			\midrule
+			1 & 102.946 \\
+			2 & 112.713 \\
+			3 & 105.891 \\
+			4 & 109.147 \\
+			5 & 92.016 \\
+			6 & 127.674 \\
+			7 & 106.744 \\
+			8 & 123.798 \\
+			9 & 118.686 \\
+			10 & 127.597 \\
+			\bottomrule
+		\end{tabular}
+		\caption{Best scores per run for the random-search experiment. Values sourced from \texttt{data/2a/green/best\_per\_run.txt}.}
+		\label{tab:green-scores}
+	\end{table}
+	
+	Figure~\ref{fig:green-stairstep} provides a placeholder for the stair-step plot of evaluations versus the incumbent best score for the highest-scoring run. Insert the exported PNG from \texttt{data/2a/green/stairstep.png} in place of the placeholder before submission. Figure~\ref{fig:green-hist} likewise reserves space for the histogram of best scores across all runs using \texttt{data/2a/green/histogram.png}.
+	
+	\begin{figure}[ht]
+		\centering
+		\fbox{\parbox[c][2.5in][c]{0.9\linewidth}{\centering Placeholder for stair-step plot (insert \texttt{stairstep.png})}}
+		\caption{Evaluations versus best score progression for the strongest random-search run.}
+		\label{fig:green-stairstep}
+	\end{figure}
+	
+	\begin{figure}[ht]
+		\centering
+		\fbox{\parbox[c][2.5in][c]{0.9\linewidth}{\centering Placeholder for histogram plot (insert \texttt{histogram.png})}}
+		\caption{Histogram of best scores across ten random-search runs.}
+		\label{fig:green-hist}
+	\end{figure}
+	
+	\subsection{Informal Behavioral Analysis}\label{sec:behavior}
+	The assignment requires an informal description of the evolved controller's behavior after reviewing the visualization of the top-scoring run. Access to an interactive browser is needed to play the animation contained in \texttt{data/2a/green/visualization.html}. Because the current environment does not support rendering the interactive visualization, the behavioral write-up remains outstanding. Please revisit this section after observing the animation and summarize notable strengths, weaknesses, and quirks exhibited by the controller.
+	
+	\subsection{Hill Climber Investigation (Red~2 Bonus)}
+	The hill climber consistently outperformed random search on this workload. Table~\ref{tab:hill-scores} lists the per-run best scores, which averaged \num{142.047} with a standard deviation of \num{8.040}. The weakest hill-climber run (Run~4) still surpassed the random-search mean.
+	
+	\begin{table}[ht]
+		\centering
+		\begin{tabular}{cc}
+			\toprule
+			Run & Best Score \\
+			\midrule
+			1 & 141.473 \\
+			2 & 138.450 \\
+			3 & 158.450 \\
+			4 & 132.093 \\
+			5 & 133.643 \\
+			6 & 139.922 \\
+			7 & 149.147 \\
+			8 & 137.442 \\
+			9 & 140.620 \\
+			10 & 149.225 \\
+			\bottomrule
+		\end{tabular}
+		\caption{Best scores per run for the hill-climber baseline, derived from \texttt{data/2a/hill\_climber/best\_per\_run.txt}.}
+		\label{tab:hill-scores}
+	\end{table}
+	
+	A two-sample \textit{t}-test contrasting the two sets of best scores yields a statistic of $t \approx -6.55$ with $p < 10^{-4}$, indicating that the hill climber's superior mean is statistically significant under standard assumptions of independent runs with unequal variances.
+	
+	\begin{figure}[ht]
+		\centering
+		\fbox{\parbox[c][2.5in][c]{0.9\linewidth}{\centering Placeholder for hill-climber stair-step plot}}
+		\caption{Placeholder for a hill-climber stair-step visualization (insert generated plot if desired).}
+		\label{fig:hill-stairstep}
+	\end{figure}
+	
+	\subsection{Ghost Controller Random Search (Red~1 Bonus)}
+	The ghost random-search experiment ran under the modified primitive set and evaluation function discussed above. Across all ten runs, the best controller achieved a Pac-Man score of \num{0.775}, indicating that the ghost repeatedly caught Pac-Man almost immediately. Because every run converged to the same score, the distribution is degenerate; the mean and standard deviation are \num{0.775} and $0$, respectively. Figure~\ref{fig:ghost-hist} is a placeholder for the associated histogram.
+	
+	\begin{figure}[ht]
+		\centering
+		\fbox{\parbox[c][2.5in][c]{0.9\linewidth}{\centering Placeholder for ghost-controller histogram}}
+		\caption{Placeholder for the ghost-controller score histogram (insert \texttt{data/2a/red1/histogram.png}).}
+		\label{fig:ghost-hist}
+	\end{figure}
+	
+	\section{Discussion}
+	Random search located moderately capable Pac-Man controllers, but the hill climber provided a sizeable improvement of roughly \num{29.325} points on average. The uniform scores for the ghost runs suggest either an implementation bug or a controller that exploits deterministic behavior to capture Pac-Man immediately; verify the experiment setup before drawing firm conclusions.
+	
+	\section{Outstanding Tasks}
+	\begin{itemize}
+		\item Document the controller's observed behavior after watching the visualization playback and revise Section~\ref{sec:behavior} accordingly.
+		\item Replace every placeholder figure with the corresponding image assets prior to submission.
+	\end{itemize}
+	
+	\section*{Reproducibility}
+	All raw data required to regenerate the tables and plots are committed under the \texttt{data/2a} directory. A future revision should include scripts (e.g., in \texttt{scripts/}) to reproduce these artifacts end-to-end.
+	
+\end{document}
