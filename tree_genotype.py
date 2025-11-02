@@ -144,12 +144,27 @@ class ParseTree:
 
         result = 0.0
 
+        # Collect player locations once so the distance primitives can reuse them.
+        pac_positions = {name: pos for name, pos in players.items() if "m" in name}
+        ghost_positions = {name: pos for name, pos in players.items() if "m" not in name}
+
         if primitive == "G":
-            ghosts = [pos for name, pos in players.items() if "m" not in name]
-            if ghosts:
-                result = min(manhattan(location, ghost) for ghost in ghosts)
+            if "m" in active_player:
+                # Pac-Man evaluates the distance to the closest ghost.
+                ghosts = list(ghost_positions.values())
+                if ghosts:
+                    result = min(manhattan(location, ghost) for ghost in ghosts)
+                else:
+                    result = float(width + height)
             else:
-                result = float(width + height)
+                # Ghosts evaluate the distance to their nearest teammate to avoid collisions.
+                other_ghosts = [
+                    pos for name, pos in ghost_positions.items() if name != active_player
+                ]
+                if other_ghosts:
+                    result = min(manhattan(location, ghost) for ghost in other_ghosts)
+                else:
+                    result = float(width + height)
         elif primitive == "P":
             pills = state.get("pills", ())
             result = min((manhattan(location, pill) for pill in pills), default=0.0)
@@ -169,6 +184,13 @@ class ParseTree:
                 elif walls[nx][ny]:
                     adjacent_walls += 1
             result = float(adjacent_walls)
+        elif primitive == "M":
+            # Ghosts use this to chase Pac-Man; Pac-Man sees zero when looking at itself.
+            pacs = list(pac_positions.values())
+            if pacs:
+                result = min(manhattan(location, pac) for pac in pacs)
+            else:
+                result = float(width + height)
         else:
             raise ValueError(f"unknown terminal primitive '{primitive}'")
 

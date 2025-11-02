@@ -1,0 +1,40 @@
+# --- Red 1 Ghost Random Search Setup ---
+from pathlib import Path
+from red1_random_search import (
+    load_red1_config,
+    ghost_random_search_run,
+    ghost_random_search_experiment,
+    save_ghost_data,
+)
+
+# Example: quick sanity check with a small evaluation budget
+red1_config = load_red1_config()
+small_best = ghost_random_search_run(100, red1_config)
+print('Sample ghost score:', small_best.best_score)
+print('Sample stairstep length:', len(small_best.stairstep_data))
+
+# Full experiment mirroring the GREEN deliverable workflow
+num_runs = 10
+num_evaluations = 10_000
+(
+    ghost_best_per_run,
+    ghost_best_solution,
+    ghost_best_log,
+    ghost_stairstep_data,
+    ghost_hist,
+) = ghost_random_search_experiment(num_runs, num_evaluations, red1_config)
+
+save_ghost_data(
+    ghost_best_per_run,
+    ghost_best_solution,
+    ghost_best_log,
+    ghost_stairstep_data,
+    ghost_hist,
+    Path('./data/2a/red1/'),
+)
+
+fig = ghost_hist.get_plot(
+    f'Distribution of Ghost Scores over {num_runs} Runs of Random Search'
+)
+fig.savefig('data/2a/red1/histogram.png')
+fig.show()
