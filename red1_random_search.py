@@ -1,14 +1,13 @@
-"""Ghost random search experiment helpers for the Assignment 2a Red 1 bonus task."""
+"""
+Ghost random search experiment helpers for 2a Red 1"""
 
 from __future__ import annotations
-
 import argparse
 import math
 import multiprocessing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence, Tuple
-
 from histogram import RoundedFitnessHistogramMaker
 from snake_eyes import read_config
 from fitness import play_GPac
@@ -17,7 +16,8 @@ from tree_genotype import TreeGenotype
 
 @dataclass
 class GhostRandomSearchResult:
-    """Container capturing the important artifacts from a single run."""
+    """
+    Container capturing the artifacts from a single run."""
 
     best_solution: TreeGenotype
     best_score: float
@@ -27,7 +27,8 @@ class GhostRandomSearchResult:
 
 
 def _validate_config_section(config: dict, section: str) -> dict:
-    """Return a shallow copy of the requested config section with helpful errors."""
+    """
+    error validation."""
 
     if section not in config:
         raise KeyError(
@@ -37,13 +38,14 @@ def _validate_config_section(config: dict, section: str) -> dict:
 
 
 def ghost_random_search_run(num_evaluations: int, config: dict) -> GhostRandomSearchResult:
-    """Execute a single random-search sweep that minimises Pac-Man's score."""
+    """
+    Execute a single random sweep that minimises Pac-Man's score."""
 
     ghost_kwargs = _validate_config_section(config, "ghost_init")
     game_kwargs = dict(config.get("game", {}))
 
     if "depth_limit" not in ghost_kwargs:
-        raise KeyError("ghost_init.depth_limit must be defined in the configuration")
+        raise KeyError("ghost_init.depth_limit must be defined")
 
     histogram = RoundedFitnessHistogramMaker()
     best_solution: TreeGenotype | None = None
