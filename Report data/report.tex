@@ -4,6 +4,7 @@
 \usepackage{graphicx}
 \usepackage{siunitx}
 \usepackage{hyperref}
+\usepackage{float}
 \sisetup{round-mode=places,round-precision=3}
 
 \title{COMP 6660 Fall 2025 Assignment 2a}
@@ -14,7 +15,27 @@
 	\maketitle
 	
 	\section{Results}
-	\subsection{Random Search (Green Requirement)}
+	\subsection{Green}
+	
+	
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\linewidth]{green_stairstep.png}
+	\caption{Enter Caption}
+	\label{fig:placeholder}
+\end{figure}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	Table~\ref{tab:green-scores} summarizes the best score observed in each of the ten random-search runs. The experiment achieved a mean best score of \num{112.721} with a sample standard deviation of \num{11.655}. Run~6 found the strongest controller with a score of \num{127.674}.
 	
 	\begin{table}[ht]
@@ -85,12 +106,7 @@
 	
 	A two-sample \textit{t}-test contrasting the two sets of best scores yields a statistic of $t \approx -6.55$ with $p < 10^{-4}$, indicating that the hill climber's superior mean is statistically significant under standard assumptions of independent runs with unequal variances.
 	
-	\begin{figure}[ht]
-		\centering
-		\fbox{\parbox[c][2.5in][c]{0.9\linewidth}{\centering Placeholder for hill-climber stair-step plot}}
-		\caption{Placeholder for a hill-climber stair-step visualization (insert generated plot if desired).}
-		\label{fig:hill-stairstep}
-	\end{figure}
+
 	
 	\subsection{Ghost Controller Random Search (Red~1 Bonus)}
 	The ghost random-search experiment ran under the modified primitive set and evaluation function discussed above. Across all ten runs, the best controller achieved a Pac-Man score of \num{0.775}, indicating that the ghost repeatedly caught Pac-Man almost immediately. Because every run converged to the same score, the distribution is degenerate; the mean and standard deviation are \num{0.775} and $0$, respectively. Figure~\ref{fig:ghost-hist} is a placeholder for the associated histogram.
