@@ -1,0 +1,14 @@
+[ghost_init]
+depth_limit = 7
+# Include Pac-Man distance (M) so ghosts can actively chase their target.
+terminals = ('G', 'M', 'P', 'F', 'W', 'C')
+nonterminals = ('+', '-', '*', '/', 'RAND')
+
+[game]
+game_map = map.txt
+pill_spawn = waves
+pill_density = 1/3
+fruit_prob = 1/75
+fruit_score = 10
+fruit_spawn = corners_spawned
+time_multiplier = 2.5
